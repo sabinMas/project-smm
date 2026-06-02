@@ -58,6 +58,13 @@ export class ContentAdapter {
     return text.length > limit ? text.slice(0, limit - 3) + '...' : text;
   }
 
+  adapt(text: string, platform: PlatformId): AdaptedContent {
+    const { characterLimit } = this.getPlatformRules(platform);
+    const truncated = this.truncateForPlatform(text, characterLimit);
+    const hashtags = this.extractHashtags(truncated);
+    return { platform, text: truncated, hashtags, characterCount: truncated.length, characterLimit, isValid: truncated.length <= characterLimit, warnings: [] };
+  }
+
   private extractHashtags(text: string): string[] {
     const matches = text.match(/#\w+/g);
     return matches ?? [];

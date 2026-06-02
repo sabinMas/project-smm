@@ -49,15 +49,11 @@ export class PublisherService {
 
           await this.logAttempt(postId, platform, attempt, success, result.error);
 
+          // platformPostIds tracked via PublishAttempt records
           if (success && result.platformPostId) {
-            await prisma.post.update({
-              where: { id: postId },
-              data: {
-                platformPostIds: {
-                  ...(post as any).platformPostIds,
-                  [platform]: result.platformPostId,
-                },
-              },
+            await prisma.publishAttempt.updateMany({
+              where: { postId, platformId: platform, attemptNumber: attempt },
+              data: { status: 'success' },
             });
           }
         } catch (e) {
@@ -76,7 +72,7 @@ export class PublisherService {
       where: { id: postId },
       data: {
         status: allSucceeded ? 'published' : anySucceeded ? 'published' : 'failed',
-        publishedAt: anySucceeded ? new Date() : undefined,
+        publishedAt: anySucceeded ? new Date() : null,
       },
     });
 

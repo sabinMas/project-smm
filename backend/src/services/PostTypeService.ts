@@ -7,8 +7,9 @@ export class PostTypeService {
     return val as FormattingPreferences;
   }
 
-  private toJson(prefs: FormattingPreferences): unknown {
-    return prefs as unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private toJson(prefs: FormattingPreferences): any {
+    return prefs;
   }
 
   async getUserPostTypes(userId: string) {
