@@ -5,13 +5,15 @@ WORKDIR /app
 # Copy all files
 COPY . .
 
-# Install ALL dependencies
+# Install dependencies
 RUN npm install
 
-# Build backend from root (tsc --build in backend dir)
-WORKDIR /app/backend
-RUN npm run build
+# Build shared first (generates dist/index.d.ts)
+RUN npx tsc --project shared/tsconfig.json
+
+# Build backend
+RUN npx tsc --build backend
 
 # Start server
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+CMD ["node", "backend/dist/index.js"]

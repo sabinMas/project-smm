@@ -1,44 +1,66 @@
-import type { AdaptedContent, PlatformId } from '@smm/shared';
-
-const LIMITS: Record<PlatformId, number> = {
-  x: 280,
-  linkedin: 3000,
-  instagram: 2200,
-  threads: 500,
-  bluesky: 300,
-  facebook: 63206,
-  tiktok: 2200,
-};
+import { prisma } from '@/lib/db';
+import type { PlatformId, PlatformContent, AdaptedContent } from '@smm/shared';
 
 export class ContentAdapter {
-  adapt(text: string, platform: PlatformId): AdaptedContent {
-    const limit = LIMITS[platform] ?? 1000;
-    let adapted = text;
-    const warnings: string[] = [];
+  async adaptContentForPlatforms(
+    postId: string,
+    originalContent: string,
+    platforms: PlatformId[]
+  ): Promise<AdaptedContent[]> {
+    const adapted: AdaptedContent[] = [];
 
-    if (text.length > limit) {
-      adapted = text.slice(0, limit - 3) + '...';
-      warnings.push(`Content exceeds ${platform} limit, truncated`);
-    } else if (text.length > limit * 0.9) {
-      warnings.push(`Approaching ${platform} character limit`);
+    for (const platform of platforms) {
+      const { characterLimit, hashtagStyle } = this.getPlatformRules(platform);
+      const text = this.truncateForPlatform(originalContent, characterLimit);
+      const hashtags = hashtagStyle === 'none' ? [] : this.extractHashtags(text);
+
+      await prisma.adaptedContent.create({
+        data: {
+          postId,
+          platformId: platform,
+          adaptedText: text,
+          hashtags: hashtags ?? [],
+          characterCount: text.length,
+          characterLimit,
+          isValid: text.length <= characterLimit,
+          warnings: [],
+        },
+      });
+
+      adapted.push({
+        platform,
+        text,
+        hashtags: hashtags ?? [],
+        characterCount: text.length,
+        characterLimit,
+        isValid: text.length <= characterLimit,
+        warnings: [],
+      });
     }
 
-    let hashtags: string[] | undefined;
-    if (platform === 'instagram') {
-      const hashtagPattern = /#[\w]+/g;
-      hashtags = adapted.match(hashtagPattern)?.map((tag) => tag.slice(1)) ?? [];
-      adapted = adapted.replace(hashtagPattern, '').trim();
-    }
+    return adapted;
+  }
 
-    return {
-      platform,
-      text: adapted,
-      hashtags,
-      characterCount: adapted.length,
-      characterLimit: limit,
-      isValid: adapted.length <= limit,
-      warnings,
+  private getPlatformRules(platform: PlatformId) {
+    const rules: Record<PlatformId, { characterLimit: number; hashtagStyle: string }> = {
+      x: { characterLimit: 280, hashtagStyle: 'moderate' },
+      linkedin: { characterLimit: 3000, hashtagStyle: 'minimal' },
+      facebook: { characterLimit: 2000, hashtagStyle: 'minimal' },
+      instagram: { characterLimit: 2200, hashtagStyle: 'heavy' },
+      threads: { characterLimit: 500, hashtagStyle: 'moderate' },
+      tiktok: { characterLimit: 2200, hashtagStyle: 'heavy' },
+      bluesky: { characterLimit: 300, hashtagStyle: 'moderate' },
     };
+    return rules[platform];
+  }
+
+  private truncateForPlatform(text: string, limit: number): string {
+    return text.length > limit ? text.slice(0, limit - 3) + '...' : text;
+  }
+
+  private extractHashtags(text: string): string[] {
+    const matches = text.match(/#\w+/g);
+    return matches ?? [];
   }
 }
 
