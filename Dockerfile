@@ -3,18 +3,16 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy monorepo
-COPY package*.json ./
-COPY tsconfig.base.json ./
+COPY package*.json tsconfig*.json ./
 COPY shared/ ./shared/
 COPY backend/ ./backend/
 
-# Install all deps
-RUN npm install
+# Install deps
+RUN npm install --workspace=backend
 
-# Build
-WORKDIR /app/backend
-RUN npm run build
+# Build backend (shared is just types, no build needed)
+RUN npm --workspace=backend run build
 
 # Start backend
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+CMD ["node", "backend/dist/index.js"]

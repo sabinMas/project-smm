@@ -7,8 +7,8 @@ export class PostTypeService {
     return val as FormattingPreferences;
   }
 
-  private toJson(prefs: FormattingPreferences) {
-    return prefs as unknown as import('@prisma/client').Prisma.JsonObject;
+  private toJson(prefs: FormattingPreferences): unknown {
+    return prefs as unknown;
   }
 
   async getUserPostTypes(userId: string) {

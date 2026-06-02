@@ -15,11 +15,14 @@ const app = express();
 const wsInstance = expressWs(app);
 
 app.use(express.json());
-app.use((_req, res, next) => {
+app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (_req.method === 'OPTIONS') return res.sendStatus(204);
+  if (_req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
   next();
 });
 
@@ -209,7 +212,7 @@ app.get('/api/workflows', async (_req, res, next) => {
 // ── WebSocket (real-time updates) ────────────────────────────────────────────
 const wsClients = new Set<any>();
 
-app.ws('/ws', (ws) => {
+(app as any).ws('/ws', (ws: any) => {
   wsClients.add(ws);
   ws.on('close', () => wsClients.delete(ws));
   ws.on('message', () => ws.send(JSON.stringify({ type: 'pong' })));

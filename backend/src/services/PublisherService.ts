@@ -141,6 +141,8 @@ export class PublisherService {
         c.setCredentials(tokenData.accessToken, tokenData.did);
         return c;
       }
+      default:
+        return null;
     }
   }
 
