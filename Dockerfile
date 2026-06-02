@@ -2,18 +2,14 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy all files
+# Copy everything
 COPY . .
 
-# Install dependencies
-RUN npm install
+# Install all deps
+RUN npm install --legacy-peer-deps
 
-# Build shared first (generates dist/index.d.ts)
-RUN npx tsc --project shared/tsconfig.json
+# Build in root so references work
+RUN npx tsc --project tsconfig.json
 
-# Build backend
-RUN npx tsc --build backend
-
-# Start server
 EXPOSE 3000
 CMD ["node", "backend/dist/index.js"]
