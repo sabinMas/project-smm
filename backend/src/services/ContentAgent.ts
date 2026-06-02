@@ -1,15 +1,17 @@
 import { CerebrasProvider } from '@/providers/CerebrasProvider';
 import { BedrockProvider } from '@/providers/BedrockProvider';
 import { contentAdapter } from './ContentAdapter';
-import type { ContentPrompt, GeneratedContent, PlatformId } from '@smm/shared';
+import { env } from '@/lib/env';
+import type { ContentPrompt, GeneratedContent } from '@smm/shared';
 
 export class ContentAgent {
   private cerebras: CerebrasProvider;
-  private bedrock: BedrockProvider;
+  private bedrock: BedrockProvider | null;
 
   constructor() {
     this.cerebras = new CerebrasProvider();
-    this.bedrock = new BedrockProvider();
+    // Only instantiate Bedrock if AWS credentials are present
+    this.bedrock = env.AWS_ACCESS_KEY_ID ? new BedrockProvider() : null;
   }
 
   async generate(prompt: ContentPrompt): Promise<GeneratedContent> {
@@ -19,9 +21,13 @@ export class ContentAgent {
     try {
       text = await this.cerebras.generate(this.buildPrompt(prompt));
     } catch (e) {
-      console.warn('Cerebras failed, falling back to Bedrock:', e);
-      provider = 'bedrock';
-      text = await this.bedrock.generate(this.buildPrompt(prompt));
+      if (this.bedrock) {
+        console.warn('Cerebras failed, falling back to Bedrock:', e);
+        provider = 'bedrock';
+        text = await this.bedrock.generate(this.buildPrompt(prompt));
+      } else {
+        throw new Error(`Content generation failed: ${(e as Error).message}`);
+      }
     }
 
     const drafts = prompt.targetPlatforms.map((platform) => ({
@@ -31,7 +37,7 @@ export class ContentAgent {
 
     return {
       drafts,
-      modelUsed: provider === 'cerebras' ? 'cerebras/llama-3.3-70b' : 'claude-3-sonnet',
+      modelUsed: provider === 'cerebras' ? `cerebras/${env.CEREBRAS_MODEL}` : 'claude-3-sonnet',
       providerId: provider,
     };
   }
