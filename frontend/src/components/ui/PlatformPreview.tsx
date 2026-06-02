@@ -45,7 +45,7 @@ export default function PlatformPreview({ platform, content }: PlatformPreviewPr
       <p className="text-sm text-white/90 whitespace-pre-wrap break-words">{content.text}</p>
       {content.hashtags && content.hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {content.hashtags.map((tag) => (
+          {content.hashtags.map((tag: string) => (
             <span key={tag} className="text-xs text-brand-500">
               #{tag}
             </span>
@@ -54,7 +54,7 @@ export default function PlatformPreview({ platform, content }: PlatformPreviewPr
       )}
       {content.warnings.length > 0 && (
         <div className="mt-2 space-y-1">
-          {content.warnings.map((w, i) => (
+          {content.warnings.map((w: string, i: number) => (
             <p key={i} className="text-xs text-yellow-400">
               ⚠️ {w}
             </p>

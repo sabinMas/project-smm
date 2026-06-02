@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAnalyticsStore } from '@/store/analyticsStore';
 import { format, subDays } from 'date-fns';
+import type { DailyEngagement, PostMetrics } from '@smm/shared';
 
 function MetricCard({ label, value }: { label: string; value: number }) {
   return (
@@ -71,7 +72,7 @@ export default function AnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dashboard.engagementByDay.map((day) => (
+                    {dashboard.engagementByDay.map((day: DailyEngagement) => (
                       <tr key={String(day.date)} className="border-b border-white/5">
                         <td className="py-2 px-2 text-white/70">
                           {format(new Date(day.date), 'MMM d')}
@@ -93,7 +94,7 @@ export default function AnalyticsPage() {
             <div className="card">
               <h2 className="text-sm font-medium text-white/60 mb-4">Top Posts</h2>
               <div className="space-y-2">
-                {dashboard.topPosts.map((post) => (
+                {dashboard.topPosts.map((post: PostMetrics) => (
                   <div key={post.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                     <div className="flex items-center gap-2">
                       <span className="badge bg-brand-500/20 text-brand-500">{post.platformId}</span>

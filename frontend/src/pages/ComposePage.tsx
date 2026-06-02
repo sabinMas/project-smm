@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useComposeStore } from '@/store/composeStore';
 import { usePostTypesStore } from '@/store/postTypesStore';
 import PlatformPreview from '@/components/ui/PlatformPreview';
-import type { PlatformId } from '@smm/shared';
+import type { PlatformId, PlatformDraft } from '@smm/shared';
 
 const PLATFORM_LABELS: Record<PlatformId, string> = {
   x: 'X (Twitter)',
@@ -168,7 +168,7 @@ export default function ComposePage() {
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-white/60">Platform Previews</h2>
           {generatedContent ? (
-            generatedContent.drafts.map((draft) => (
+            generatedContent.drafts.map((draft: PlatformDraft) => (
               <PlatformPreview
                 key={draft.platform}
                 platform={draft.platform}

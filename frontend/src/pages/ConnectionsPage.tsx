@@ -55,10 +55,10 @@ export default function ConnectionsPage() {
               <div key={platformId} className="card flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-surface-2 rounded-lg flex items-center justify-center text-lg font-bold">
-                    {info.icon}
+                    {info?.icon}
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{info.name}</p>
+                    <p className="font-medium text-sm">{info?.name}</p>
                     {conn ? (
                       <p className={clsx('text-xs', statusInfo?.color)}>
                         {statusInfo?.label} • @{conn.platformUsername}

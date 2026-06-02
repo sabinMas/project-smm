@@ -6,7 +6,6 @@ import type {
   WorkflowLog,
   IntegrationStatus,
 } from '@smm/shared';
-
 export const mockConnections: PlatformConnection[] = [
   {
     id: '1',
@@ -72,7 +71,6 @@ export const mockConnections: PlatformConnection[] = [
     lastRefreshedAt: new Date(),
   },
 ];
-
 export const mockPostTypes: PostType[] = [
   {
     id: 'business',
@@ -107,7 +105,6 @@ export const mockPostTypes: PostType[] = [
     updatedAt: new Date('2024-01-01'),
   },
 ];
-
 export const mockPosts: ScheduledPost[] = [
   {
     id: 'p1',
@@ -135,7 +132,6 @@ export const mockPosts: ScheduledPost[] = [
     targetPlatforms: ['x', 'instagram', 'bluesky'],
     status: 'scheduled',
     scheduledAt: new Date('2026-06-03T08:00:00'),
-    publishedAt: undefined,
     platformPostIds: {},
     retryCount: 0,
     maxRetries: 3,
@@ -150,8 +146,6 @@ export const mockPosts: ScheduledPost[] = [
     adaptedContent: {},
     targetPlatforms: ['linkedin', 'x'],
     status: 'draft',
-    scheduledAt: undefined,
-    publishedAt: undefined,
     platformPostIds: {},
     retryCount: 0,
     maxRetries: 3,
@@ -159,7 +153,6 @@ export const mockPosts: ScheduledPost[] = [
     updatedAt: new Date('2026-06-02'),
   },
 ];
-
 export const mockDashboardMetrics: DashboardMetrics = {
   period: { from: new Date('2026-05-01'), to: new Date('2026-06-01') },
   aggregate: {
@@ -203,7 +196,6 @@ export const mockDashboardMetrics: DashboardMetrics = {
     impressions: Math.floor(800 + Math.random() * 1200),
   })),
 };
-
 export const mockWorkflowLogs: WorkflowLog[] = [
   {
     id: 'wf1',
@@ -257,7 +249,6 @@ export const mockWorkflowLogs: WorkflowLog[] = [
     summary: 'Created 5 business-forward posts scheduled Mon–Fri targeting LinkedIn and X.',
   },
 ];
-
 export const mockIntegrations: IntegrationStatus[] = [
   { id: 'vapi', name: 'Vapi Voice AI', configured: false },
   { id: 'apify', name: 'Apify Web Scraping', configured: true, lastUsed: new Date('2026-06-01') },

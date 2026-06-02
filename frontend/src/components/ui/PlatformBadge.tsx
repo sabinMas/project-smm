@@ -19,6 +19,7 @@ interface Props {
 
 export default function PlatformBadge({ platform, size = 'md', showLabel = true }: Props) {
   const m = META[platform];
+  if (!m) return null;
   return (
     <span
       className={clsx(

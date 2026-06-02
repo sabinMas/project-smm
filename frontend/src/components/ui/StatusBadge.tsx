@@ -16,6 +16,7 @@ interface Props {
 
 export default function StatusBadge({ status }: Props) {
   const c = CONFIG[status];
+  if (!c) return null;
   return (
     <span className={clsx('badge', c.color)}>
       <span className={clsx('w-1.5 h-1.5 rounded-full', c.dot)} />

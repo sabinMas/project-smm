@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useWorkflowsStore } from '@/store/workflowsStore';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
-import type { ExecutionStep, WorkflowStatus } from '@smm/shared';
+import type { ExecutionStep, WorkflowStatus, StepType, StepStatus } from '@smm/shared';
 
 const STATUS_STYLES: Record<WorkflowStatus, { label: string; color: string }> = {
   running: { label: 'Running', color: 'text-yellow-400' },
@@ -12,8 +12,8 @@ const STATUS_STYLES: Record<WorkflowStatus, { label: string; color: string }> = 
 };
 
 function StepItem({ step }: { step: ExecutionStep }) {
-  const typeIcons = { plan: '📋', tool_use: '🔧', reflection: '🤔' };
-  const statusColors = { success: 'text-green-400', failed: 'text-red-400', retried: 'text-yellow-400' };
+  const typeIcons: Record<StepType, string> = { plan: '📋', tool_use: '🔧', reflection: '🤔' };
+  const statusColors: Record<StepStatus, string> = { success: 'text-green-400', failed: 'text-red-400', retried: 'text-yellow-400' };
 
   return (
     <div className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0">
@@ -82,15 +82,15 @@ export default function WorkflowsPage() {
         <div className="card space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium">Current Workflow</h2>
-            <span className={clsx('text-xs font-medium', STATUS_STYLES[activeWorkflow.status].color)}>
-              {STATUS_STYLES[activeWorkflow.status].label}
+            <span className={clsx('text-xs font-medium', STATUS_STYLES[activeWorkflow.status]?.color)}>
+              {STATUS_STYLES[activeWorkflow.status]?.label}
             </span>
           </div>
           {activeWorkflow.summary && (
             <p className="text-sm text-white/70">{activeWorkflow.summary}</p>
           )}
           <div className="space-y-0">
-            {activeWorkflow.steps.map((step) => (
+            {activeWorkflow.steps.map((step: ExecutionStep) => (
               <StepItem key={step.stepId} step={step} />
             ))}
           </div>
@@ -113,8 +113,8 @@ export default function WorkflowsPage() {
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm truncate mr-4">{wf.instruction}</p>
-                <span className={clsx('text-xs flex-shrink-0', STATUS_STYLES[wf.status].color)}>
-                  {STATUS_STYLES[wf.status].label}
+                <span className={clsx('text-xs flex-shrink-0', STATUS_STYLES[wf.status]?.color)}>
+                  {STATUS_STYLES[wf.status]?.label}
                 </span>
               </div>
               <p className="text-xs text-white/40 mt-1">

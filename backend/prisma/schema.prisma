@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connections       PlatformConnection[]
+  postTypes         PostType[]
+  posts             Post[]
+  workflowLogs      WorkflowLog[]
+}
+
+model PlatformConnection {
+  id                   String   @id @default(cuid())
+  userId               String
+  platformId           String
+  status               String   @default("active")
+  encryptedTokenData   String
+  platformUsername     String
+  connectedAt          DateTime @default(now())
+  lastRefreshedAt      DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts Post[]
+
+  @@unique([userId, platformId])
+  @@index([userId])
+}
+
+model PostType {
+  id                      String   @id @default(cuid())
+  userId                  String
+  name                    String
+  isDefault               Boolean  @default(false)
+  targetPlatforms         String[] @db.VarChar
+  toneDescriptor          String
+  formattingPreferencesJson String  @db.JsonB
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts Post[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Post {
+  id                String   @id @default(cuid())
+  userId            String
+  postTypeId        String
+  originalContent   String
+  status            String   @default("draft")
+  scheduledAt       DateTime?
+  publishedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postType          PostType              @relation(fields: [postTypeId], references: [id], onDelete: Restrict)
+  adaptedContent    AdaptedContent[]
+  publishAttempts   PublishAttempt[]
+  metrics           PostMetrics[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model AdaptedContent {
+  id              String   @id @default(cuid())
+  postId          String
+  platformId      String
+  adaptedText     String
+  hashtags        String[] @db.VarChar
+  characterCount  Int
+  characterLimit  Int
+  isValid         Boolean  @default(true)
+  warnings        String[] @db.VarChar
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, platformId])
+  @@index([postId])
+}
+
+model PublishAttempt {
+  id             String   @id @default(cuid())
+  postId         String
+  platformId     String
+  status         String
+  attemptNumber  Int
+  error          String?
+  timestamp      DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([platformId])
+}
+
+model PostMetrics {
+  id             String   @id @default(cuid())
+  postId         String
+  platformId     String
+  platformPostId String
+  likes          Int      @default(0)
+  shares         Int      @default(0)
+  comments       Int      @default(0)
+  impressions    Int      @default(0)
+  collectedAt    DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, platformId])
+  @@index([postId])
+  @@index([platformId])
+}
+
+model WorkflowLog {
+  id          String   @id @default(cuid())
+  userId      String
+  instruction String
+  status      String
+  stepsJson   String   @db.JsonB
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  summary     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
