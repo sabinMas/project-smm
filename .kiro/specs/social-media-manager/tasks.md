@@ -2,303 +2,408 @@
 
 ## Overview
 
-This plan implements a full-stack TypeScript Social Media Manager application with a React frontend and Node.js/Express backend. The implementation proceeds from foundational interfaces and infrastructure, through platform connectors and AI agent integration, to scheduling, analytics, and UI assembly. Each task builds incrementally on previous work so there is no orphaned code.
+This implementation plan covers the full build-out of an AI-native social media manager application using TypeScript/Node.js backend, React frontend, Pulumi IaC, and integrations with Amazon Bedrock AgentCore, Cerebras AI, Vapi, and Apify. Tasks are structured to build foundational infrastructure and data layers first, then core services, agent layer, external integrations, and finally the frontend dashboard.
 
 ## Tasks
 
-- [ ] 1. Set up project structure, shared types, and core interfaces
-  - [ ] 1.1 Initialize monorepo with frontend and backend packages
-    - Create directory structure: `packages/frontend` (React + Vite), `packages/backend` (Node.js + Express), `packages/shared` (shared types)
-    - Configure TypeScript `tsconfig.json` for each package with project references
-    - Set up package.json scripts for dev, build, and test
-    - Install core dependencies: express, react, react-dom, vite, vitest, prisma
-    - _Requirements: 8.3, 10.1_
-
-  - [ ] 1.2 Define shared type definitions and interfaces
-    - Create `packages/shared/src/types/platform.ts` with `PlatformType`, `PlatformContent`, `PublishResult`, `EngagementMetrics`
-    - Create `packages/shared/src/types/content.ts` with `ContentPrompt`, `ContentDraft`, `AdaptedContent`, `PostType`, `FormattingPrefs`
-    - Create `packages/shared/src/types/workflow.ts` with `WorkflowRequest`, `WorkflowPlan`, `PlanStep`, `WorkflowLogEntry`
-    - Create `packages/shared/src/types/scheduler.ts` with `ScheduledPost`, `ScheduleResult`, `DateRange`
-    - Create `packages/shared/src/types/auth.ts` with `OAuthCredentials`, `ApiKeyCredentials`, `AuthResult`, `TokenData`
-    - Create `packages/shared/src/types/model.ts` with `ModelProviderType`, `CompletionRequest`, `CompletionResponse`, `ModelProviderConfig`
-    - Create `packages/shared/src/types/external.ts` with `VapiTranscription`, `ApifyTrendResult`, `TrendQuery`
-    - Export all types from `packages/shared/src/index.ts`
-    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1_
-
-  - [ ] 1.3 Set up database schema with Prisma
-    - Create `packages/backend/prisma/schema.prisma` with User, PlatformConnection, PostType, Post, PlatformPost, EngagementSnapshot, and WorkflowLog models per design ERD
-    - Configure Prisma client generation and database connection (SQLite for dev, PostgreSQL for prod)
-    - Generate initial migration
-    - _Requirements: 1.1, 5.1, 7.1_
-
-  - [ ]* 1.4 Write unit tests for shared type validation helpers
-    - Test platform constraints lookups
-    - Test PostType default configuration
-    - _Requirements: 2.1, 6.1_
-
-- [ ] 2. Implement platform connector layer
-  - [ ] 2.1 Create PlatformConnector base interface and factory
-    - Create `packages/backend/src/platform/connector.interface.ts` implementing the `PlatformConnector` interface from design
-    - Create `packages/backend/src/platform/connector.factory.ts` with factory function that instantiates connectors by platform type
-    - Define platform constraints configuration constant `PLATFORM_CONSTRAINTS`
-    - _Requirements: 1.1, 1.5, 6.1_
-
-  - [ ] 2.2 Implement X (Twitter) connector
-    - Create `packages/backend/src/platform/connectors/x.connector.ts`
-    - Implement OAuth 2.0 authentication, token refresh, publish, getEngagement, and validateContent
-    - Enforce 280-character limit in validateContent
-    - _Requirements: 1.1, 1.4, 6.1_
-
-  - [ ] 2.3 Implement LinkedIn connector
-    - Create `packages/backend/src/platform/connectors/linkedin.connector.ts`
-    - Implement OAuth authentication, publish with professional formatting, getEngagement
-    - Enforce 3000-character limit
-    - _Requirements: 1.1, 1.4, 6.2_
-
-  - [ ] 2.4 Implement Facebook connector
-    - Create `packages/backend/src/platform/connectors/facebook.connector.ts`
-    - Implement OAuth authentication, publish, getEngagement
-    - Enforce 63,206-character limit
-    - _Requirements: 1.1, 1.4, 6.7_
-
-  - [ ] 2.5 Implement Instagram connector
-    - Create `packages/backend/src/platform/connectors/instagram.connector.ts`
-    - Implement OAuth authentication, publish with media validation, getEngagement
-    - Enforce 2200-character limit and media requirement
-    - _Requirements: 1.1, 1.4, 6.3_
-
-  - [ ] 2.6 Implement Threads connector
-    - Create `packages/backend/src/platform/connectors/threads.connector.ts`
-    - Implement authentication, publish, getEngagement
-    - Enforce 500-character limit
-    - _Requirements: 1.1, 1.4, 6.6_
-
-  - [ ] 2.7 Implement TikTok connector
-    - Create `packages/backend/src/platform/connectors/tiktok.connector.ts`
-    - Implement authentication, publish with video format validation, getEngagement
-    - Enforce 4000-character limit and media requirement
-    - _Requirements: 1.1, 1.4, 6.4_
-
-  - [ ] 2.8 Implement Bluesky connector
-    - Create `packages/backend/src/platform/connectors/bluesky.connector.ts`
-    - Implement API-key/app-password authentication, publish with embedded card link format, getEngagement
-    - Enforce 300-character limit
-    - _Requirements: 1.1, 1.4, 6.5_
-
-  - [ ] 2.9 Implement PlatformRouter
-    - Create `packages/backend/src/platform/router.ts` implementing `PlatformRouter` interface
-    - Route content to platforms based on PostType configuration
-    - Provide default post types: "business forward" (LinkedIn, X) and "personal" (X, Instagram, Bluesky, Facebook, TikTok)
-    - _Requirements: 2.1, 2.3_
-
-  - [ ]* 2.10 Write unit tests for platform connectors and router
-    - Test validateContent for each platform's character limits
-    - Test PlatformRouter routing logic for default and custom post types
-    - Test connector factory instantiation
-    - _Requirements: 1.5, 2.1, 2.3, 6.1–6.7_
-
-- [ ] 3. Checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 4. Implement model provider and AI agent layer
-  - [ ] 4.1 Implement ModelProvider interface with Bedrock and Cerebras providers
-    - Create `packages/backend/src/ai/provider.interface.ts` implementing `ModelProvider` interface
-    - Create `packages/backend/src/ai/providers/bedrock.provider.ts` with AWS SDK integration
-    - Create `packages/backend/src/ai/providers/cerebras.provider.ts` with Cerebras API integration
-    - Implement response caching with configurable TTL
-    - Implement automatic fallback: if primary provider fails, use fallback provider
-    - _Requirements: 8.1, 8.2, 8.4, 8.5_
-
-  - [ ] 4.2 Implement ContentAgent
-    - Create `packages/backend/src/ai/agents/content.agent.ts` implementing `ContentAgent` interface
-    - Implement `generate` method: build prompt from ContentPrompt, call ModelProvider, return ContentDraft
-    - Implement `refine` method: take draft + user feedback, produce refined draft
-    - Implement `suggestFromHistory` method: use engagement data to generate content suggestions
-    - Prefer free-tier model access per DEFAULT_MODEL_CONFIG
-    - _Requirements: 3.1, 3.3, 3.4, 3.5, 7.4_
-
-  - [ ] 4.3 Implement ContentAdapter
-    - Create `packages/backend/src/ai/agents/content.adapter.ts` implementing `ContentAdapter` interface
-    - Implement `adapt` method: transform content per platform constraints (character limits, hashtag behavior, link format)
-    - Implement `validateConstraints` method: check adapted content against PLATFORM_CONSTRAINTS
-    - Handle platform-specific formatting: X hashtag optimization, LinkedIn professional tone, Instagram hashtag separation, Bluesky embedded cards
-    - _Requirements: 3.2, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
-
-  - [ ] 4.4 Implement AgentOrchestrator
-    - Create `packages/backend/src/ai/orchestrator.ts` implementing `AgentOrchestrator` interface
-    - Implement plan-execute-reflect cycle: decompose WorkflowRequest into PlanSteps, execute sequentially, reflect on failures
-    - Wire ContentAgent, ContentAdapter, PlatformRouter, and Scheduler as available tools
-    - Log each planning step, tool invocation, and reflection as WorkflowLogEntry
-    - Implement retry logic: on sub-task failure, reflect and attempt alternative approach before reporting failure
-    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-
-  - [ ]* 4.5 Write unit tests for AI agent layer
-    - Test ModelProvider fallback behavior
-    - Test ContentAgent generation with mocked providers
-    - Test ContentAdapter platform-specific adaptations
-    - Test AgentOrchestrator plan decomposition and reflection
-    - _Requirements: 3.1, 3.5, 4.1, 4.3, 8.5_
-
-- [ ] 5. Implement external tool integrations
-  - [ ] 5.1 Implement Vapi voice integration
-    - Create `packages/backend/src/integrations/vapi.integration.ts` implementing `VapiIntegration` interface
-    - Implement `isConfigured` check (env variable presence)
-    - Implement `transcribeVoiceInput` method
-    - Gracefully degrade if Vapi is not configured
-    - _Requirements: 9.1, 9.3_
-
-  - [ ] 5.2 Implement Apify scraping integration
-    - Create `packages/backend/src/integrations/apify.integration.ts` implementing `ApifyIntegration` interface
-    - Implement `isConfigured` check
-    - Implement `fetchTrends` and `scrapeCompetitorContent` methods
-    - Gracefully degrade if Apify is not configured
-    - _Requirements: 9.2, 9.3_
-
-  - [ ]* 5.3 Write unit tests for external integrations
-    - Test graceful degradation when tools are not configured
-    - Test error handling when API calls fail
-    - _Requirements: 9.3_
-
-- [ ] 6. Implement scheduling and publishing system
-  - [ ] 6.1 Implement Scheduler with job queue
-    - Create `packages/backend/src/scheduler/scheduler.ts` implementing `Scheduler` interface
-    - Implement persistent job queue with cron-based triggers (use node-cron or similar)
-    - Implement `schedulePost`: store ScheduledPost in database, enqueue job
-    - Implement `cancelScheduled`: remove from queue, update status
-    - Implement `getScheduledPosts`: query by date range
-    - Implement `retryFailed`: re-enqueue with incremented retryCount (max 3 retries)
-    - _Requirements: 5.1, 5.2, 5.4_
-
-  - [ ] 6.2 Implement publish execution logic
-    - Create `packages/backend/src/scheduler/publisher.ts`
-    - On job trigger: iterate target platforms, call respective PlatformConnector.publish
-    - Handle partial failures: update per-platform status, mark post as "partially-failed" if some succeed
-    - Implement immediate publish path (within 30 seconds)
-    - Notify user on complete failure after retries
-    - _Requirements: 5.2, 5.3, 5.4_
-
-  - [ ]* 6.3 Write unit tests for scheduler
-    - Test scheduling, cancellation, and retry logic
-    - Test partial failure handling
-    - _Requirements: 5.1, 5.4_
-
-- [ ] 7. Checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
-
-- [ ] 8. Implement backend API controllers
-  - [ ] 8.1 Implement Auth controller
-    - Create `packages/backend/src/controllers/auth.controller.ts`
-    - Endpoints: `POST /auth/connect/:platform` (initiate OAuth), `GET /auth/callback/:platform` (handle OAuth callback), `GET /auth/status` (list connected platforms)
-    - Wire to PlatformConnector.authenticate and store credentials in PlatformConnection table
-    - _Requirements: 1.1, 1.2, 1.3_
-
-  - [ ] 8.2 Implement Content controller
-    - Create `packages/backend/src/controllers/content.controller.ts`
-    - Endpoints: `POST /content/generate` (trigger AI generation), `POST /content/adapt` (get platform variations), `PUT /content/:id/refine` (refine draft with feedback), `POST /content/publish` (immediate publish)
-    - Wire to AgentOrchestrator for complex workflows, ContentAgent for simple generation
-    - _Requirements: 3.1, 3.2, 3.4, 4.1, 5.3_
-
-  - [ ] 8.3 Implement Schedule controller
-    - Create `packages/backend/src/controllers/schedule.controller.ts`
-    - Endpoints: `POST /schedule` (schedule post), `DELETE /schedule/:id` (cancel), `GET /schedule` (list by date range), `POST /schedule/:id/retry` (retry failed)
-    - Wire to Scheduler
-    - _Requirements: 5.1, 5.2, 5.4, 5.5_
-
-  - [ ] 8.4 Implement Analytics controller
-    - Create `packages/backend/src/controllers/analytics.controller.ts`
-    - Endpoints: `GET /analytics/overview` (aggregate metrics), `GET /analytics/post/:id` (per-platform breakdown)
-    - Wire to EngagementSnapshot queries
-    - _Requirements: 7.1, 7.2, 7.3_
-
-  - [ ] 8.5 Implement PostType controller
-    - Create `packages/backend/src/controllers/posttype.controller.ts`
-    - Endpoints: `GET /post-types` (list), `POST /post-types` (create), `PUT /post-types/:id` (edit), `DELETE /post-types/:id` (delete)
-    - Seed default post types on first run
-    - _Requirements: 2.1, 2.2, 2.4_
-
-  - [ ] 8.6 Wire Express app with all controllers and middleware
-    - Create `packages/backend/src/app.ts` with Express setup, JSON parsing, CORS, error handling middleware
-    - Create `packages/backend/src/server.ts` entry point
-    - Register all route controllers
-    - _Requirements: 10.4_
-
-  - [ ]* 8.7 Write integration tests for API endpoints
-    - Test auth flow with mocked OAuth providers
-    - Test content generation and publish endpoints
-    - Test schedule CRUD operations
-    - _Requirements: 1.1, 3.1, 5.1_
-
-- [ ] 9. Implement analytics collector background service
-  - [ ] 9.1 Implement AnalyticsCollector
-    - Create `packages/backend/src/analytics/collector.ts`
-    - Implement periodic polling: for each published PlatformPost, call PlatformConnector.getEngagement
-    - Store results as EngagementSnapshot records
-    - Run on configurable interval (default: every 6 hours)
-    - _Requirements: 7.1, 7.2_
-
-  - [ ]* 9.2 Write unit tests for analytics collector
-    - Test metric aggregation logic
-    - Test polling interval behavior
-    - _Requirements: 7.1_
-
-- [ ] 10. Implement frontend dashboard
-  - [ ] 10.1 Set up React app with routing and layout
-    - Configure `packages/frontend` with Vite, React Router, and base layout
-    - Create layout shell with navigation sidebar (Dashboard, Compose, Calendar, Analytics, Settings)
-    - Set up API client utility for backend communication
-    - Implement responsive layout for mobile (320px+)
-    - _Requirements: 10.1, 10.3_
-
-  - [ ] 10.2 Implement Compose view
-    - Create compose form with text editor, post type selector, and platform preview
-    - Integrate with `POST /content/generate` for AI-assisted drafting
-    - Show platform-specific previews with character count indicators
-    - Add publish now / schedule options
-    - _Requirements: 3.4, 10.1_
-
-  - [ ] 10.3 Implement Calendar view
-    - Create calendar component displaying scheduled and published posts
-    - Allow date-range navigation and post status filtering
-    - Wire to `GET /schedule` endpoint
-    - _Requirements: 5.5_
-
-  - [ ] 10.4 Implement Analytics view
-    - Create aggregate metrics dashboard (total likes, shares, comments, impressions)
-    - Create per-post engagement breakdown view
-    - Wire to `GET /analytics/overview` and `GET /analytics/post/:id`
-    - _Requirements: 7.2, 7.3_
-
-  - [ ] 10.5 Implement Platform Connections settings view
-    - Create settings page showing all seven platforms with connection status
-    - Implement connect/disconnect buttons triggering auth flow
-    - Display active/inactive external integrations (Vapi, Apify)
-    - _Requirements: 1.2, 1.5, 9.4_
-
-  - [ ] 10.6 Implement real-time status updates
-    - Set up WebSocket or Server-Sent Events connection for publish status
-    - Update post status indicators in feed without page refresh
-    - Show workflow progress for agentic operations
-    - _Requirements: 4.5, 10.2, 10.4_
-
-  - [ ] 10.7 Implement content feed view
-    - Create feed showing recent and upcoming posts with status indicators (draft, scheduled, published, failed)
-    - Support filtering by platform and post type
-    - _Requirements: 10.2_
-
-  - [ ]* 10.8 Write unit tests for frontend components
-    - Test compose view form validation
-    - Test calendar date navigation
-    - Test responsive layout breakpoints
-    - _Requirements: 10.1, 10.3_
-
-- [ ] 11. Implement infrastructure as code
-  - [ ] 11.1 Set up Pulumi infrastructure definitions
-    - Create `packages/infrastructure` with Pulumi TypeScript project
-    - Define cloud resources: database, compute, storage, environment variables
-    - Configure model provider access (Bedrock IAM, Cerebras API keys)
+- [ ] 1. Set up project structure and core infrastructure
+  - [ ] 1.1 Initialize monorepo structure with package.json, tsconfig, and workspace configuration
+    - Create root monorepo with packages: `infra/`, `backend/`, `frontend/`, `shared/`
+    - Configure TypeScript project references and path aliases
+    - Set up ESLint, Prettier, and shared tsconfig base
+    - Install fast-check as dev dependency for property-based testing
+    - Configure Vitest as test runner
     - _Requirements: 8.3_
 
-- [ ] 12. Final checkpoint - Ensure all tests pass
+  - [ ] 1.2 Define shared TypeScript interfaces and types
+    - Create `shared/src/types/platform.ts` with PlatformId, PlatformConnector, AuthResult, TokenData interfaces
+    - Create `shared/src/types/content.ts` with PostType, DraftContent, AdaptedContent, PlatformConstraints interfaces
+    - Create `shared/src/types/scheduling.ts` with ScheduledPost, ScheduleResult interfaces
+    - Create `shared/src/types/analytics.ts` with EngagementMetrics, AggregateMetrics interfaces
+    - Create `shared/src/types/agent.ts` with WorkflowRequest, WorkflowResult, ExecutionStep interfaces
+    - Create `shared/src/types/integrations.ts` with VapiIntegration, ApifyIntegration interfaces
+    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 9.1, 9.2_
+
+  - [ ] 1.3 Create Pulumi IaC project for cloud infrastructure
+    - Initialize Pulumi project in `infra/` with TypeScript
+    - Define PostgreSQL RDS instance with encryption at rest
+    - Define Redis ElastiCache cluster
+    - Define S3 bucket for media storage with public access blocked
+    - Define SQS queues for publish scheduling and dead-letter queue
+    - Define IAM roles with least-privilege policies for each service
+    - Define API Gateway (REST + WebSocket) resources
+    - Define Lambda functions or ECS services for backend
+    - _Requirements: 8.3_
+
+- [ ] 2. Implement data layer
+  - [ ] 2.1 Create PostgreSQL database schema and migration setup
+    - Set up database migration tool (e.g., node-pg-migrate or Prisma)
+    - Create migration for `users` table with id, email, name, timestamps
+    - Create migration for `platform_connections` table with encrypted token storage
+    - Create migration for `post_types` table with target platforms array and formatting preferences JSONB
+    - Create migration for `posts` table with status enum and scheduling fields
+    - Create migration for `adapted_content` table linked to posts
+    - Create migration for `publish_attempts` table with retry tracking
+    - Create migration for `post_metrics` table for analytics
+    - Create migration for `workflow_logs` table with JSONB steps
+    - _Requirements: 1.1, 2.1, 5.1, 7.1_
+
+  - [ ] 2.2 Implement database access layer (repositories)
+    - Create `UserRepository` with CRUD operations
+    - Create `PlatformConnectionRepository` with token management methods
+    - Create `PostTypeRepository` with default seeding and custom type CRUD
+    - Create `PostRepository` with status transitions and scheduling queries
+    - Create `PublishAttemptRepository` with retry count tracking
+    - Create `PostMetricsRepository` with aggregation queries
+    - Create `WorkflowLogRepository` with step append operations
+    - _Requirements: 1.1, 2.1, 2.4, 5.1, 7.1, 4.4_
+
+  - [ ] 2.3 Implement Redis cache layer
+    - Create `CacheService` with get/set/invalidate operations
+    - Implement model response caching with TTL configuration
+    - Implement platform token caching for quick access
+    - Implement request deduplication for identical inference calls
+    - _Requirements: 8.4_
+
+  - [ ]* 2.4 Write property test for cache hit on repeated identical requests
+    - **Property 9: Cache hit on repeated identical requests**
+    - Generate random inference request objects, execute through cache service twice
+    - Assert second call returns cached result without invoking the underlying provider
+    - **Validates: Requirements 8.4**
+
+  - [ ] 2.5 Implement S3 media storage service
+    - Create `MediaStorageService` with upload, download, delete, and presigned URL generation
+    - Support image and video format validation
+    - Implement file size limits per platform requirements
+    - _Requirements: 6.3, 6.4_
+
+- [ ] 3. Checkpoint - Data layer verification
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 4. Implement platform connectors
+  - [ ] 4.1 Create base platform connector abstract class and factory
+    - Implement `BasePlatformConnector` with shared OAuth token management logic
+    - Create `PlatformConnectorFactory` for instantiating platform-specific connectors
+    - Implement token refresh logic with expiry checking
+    - _Requirements: 1.1, 1.4_
+
+  - [ ]* 4.2 Write property test for token refresh before publish
+    - **Property 1: Token refresh before publish**
+    - Generate random platform connections with expired/valid tokens
+    - Assert that expired tokens always trigger refresh before any publish operation
+    - **Validates: Requirements 1.4**
+
+  - [ ] 4.3 Implement X (Twitter) platform connector
+    - Implement OAuth 2.0 authentication flow for X API v2
+    - Implement `publish()` with 280-character enforcement
+    - Implement `getMetrics()` for engagement data retrieval
+    - Implement `validateConnection()` health check
+    - _Requirements: 1.1, 1.5, 6.1_
+
+  - [ ] 4.4 Implement LinkedIn platform connector
+    - Implement OAuth 2.0 authentication flow for LinkedIn API
+    - Implement `publish()` with professional formatting and 3000-character limit
+    - Implement `getMetrics()` for engagement data retrieval
+    - _Requirements: 1.1, 1.5, 6.2_
+
+  - [ ] 4.5 Implement Facebook platform connector
+    - Implement OAuth authentication flow for Facebook Graph API
+    - Implement `publish()` with 63,206-character limit
+    - Implement `getMetrics()` for engagement data retrieval
+    - _Requirements: 1.1, 1.5, 6.7_
+
+  - [ ] 4.6 Implement Instagram platform connector
+    - Implement OAuth authentication flow for Instagram Graph API
+    - Implement `publish()` with media validation and hashtag separation
+    - Implement `getMetrics()` for engagement data retrieval
+    - _Requirements: 1.1, 1.5, 6.3_
+
+  - [ ] 4.7 Implement Threads platform connector
+    - Implement authentication flow for Threads API
+    - Implement `publish()` with 500-character limit enforcement
+    - Implement `getMetrics()` for engagement data retrieval
+    - _Requirements: 1.1, 1.5, 6.6_
+
+  - [ ] 4.8 Implement TikTok platform connector
+    - Implement OAuth authentication flow for TikTok API
+    - Implement `publish()` with short caption and video format validation
+    - Implement `getMetrics()` for engagement data retrieval
+    - _Requirements: 1.1, 1.5, 6.4_
+
+  - [ ] 4.9 Implement Bluesky platform connector
+    - Implement AT Protocol authentication for Bluesky
+    - Implement `publish()` with 300-character limit and embedded card link formatting
+    - Implement `getMetrics()` for engagement data retrieval
+    - _Requirements: 1.1, 1.5, 6.5_
+
+- [ ] 5. Implement platform router and content adapter
+  - [ ] 5.1 Implement Platform Router
+    - Create `PlatformRouter` class implementing the routing interface
+    - Load post type configurations from PostTypeRepository
+    - Route content exclusively to platforms configured for the selected post type
+    - Seed default post types: "business forward" (LinkedIn, X), "personal" (X, Instagram, Bluesky, Facebook, TikTok)
+    - _Requirements: 2.1, 2.3_
+
+  - [ ]* 5.2 Write property test for routing exclusivity
+    - **Property 2: Routing exclusivity**
+    - Generate random post types with random platform subsets and random content
+    - Assert router output matches configured platforms exactly — no more, no fewer
+    - **Validates: Requirements 2.3**
+
+  - [ ] 5.3 Implement Content Adapter with platform-specific rules
+    - Create `ContentAdapter` class with platform constraint definitions
+    - Implement character limit enforcement for each platform (X: 280, LinkedIn: 3000, Bluesky: 300, Threads: 500, Facebook: 63,206)
+    - Implement Instagram hashtag separation (extract hashtags from body into separate field)
+    - Implement Bluesky link embedding (convert raw URLs to embedded card references)
+    - Implement TikTok caption optimization for discoverability
+    - Implement validation that produces warnings for near-limit content
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
+
+  - [ ]* 5.4 Write property test for platform character limit enforcement
+    - **Property 3: Platform character limit enforcement**
+    - Generate random strings (0 to 100,000 chars) and all platform targets
+    - Assert adapted output text length ≤ platform's defined character limit for every platform
+    - **Validates: Requirements 3.2, 6.1, 6.2, 6.5, 6.6, 6.7**
+
+  - [ ]* 5.5 Write property test for Instagram hashtag separation
+    - **Property 4: Instagram hashtag separation**
+    - Generate random content strings containing embedded #hashtags
+    - Assert no hashtag patterns remain in the caption field and all hashtags appear in the separate array
+    - **Validates: Requirements 6.3**
+
+  - [ ]* 5.6 Write property test for Bluesky link embedding
+    - **Property 5: Bluesky link embedding**
+    - Generate random content strings containing embedded URLs
+    - Assert no raw URLs remain in output text and all links are in embedded cards structure
+    - **Validates: Requirements 6.5**
+
+- [ ] 6. Checkpoint - Platform layer verification
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 7. Implement Content Agent and model provider integration
+  - [ ] 7.1 Implement Cerebras AI model provider client
+    - Create `CerebrasProvider` implementing a common `ModelProvider` interface
+    - Implement OpenAI-compatible API calls for chat completions
+    - Implement response caching through CacheService
+    - Handle rate limiting and error responses
+    - _Requirements: 8.2, 8.4_
+
+  - [ ] 7.2 Implement Amazon Bedrock model provider client
+    - Create `BedrockProvider` implementing the common `ModelProvider` interface
+    - Implement invoke model calls for content generation
+    - Implement response caching through CacheService
+    - Handle throttling and service unavailability
+    - _Requirements: 8.1, 8.4_
+
+  - [ ] 7.3 Implement model provider fallback logic
+    - Create `ModelProviderRouter` that wraps both providers
+    - Implement primary/fallback routing: try preferred provider first, fall back on failure
+    - Implement health checking for provider availability
+    - _Requirements: 8.5_
+
+  - [ ]* 7.4 Write property test for model provider fallback
+    - **Property 10: Model provider fallback**
+    - Generate random inference requests with simulated primary provider failures
+    - Assert alternative provider is called and no immediate failure is returned to user
+    - **Validates: Requirements 8.5**
+
+  - [ ] 7.5 Implement Content Agent
+    - Create `ContentAgent` class using ModelProviderRouter for inference
+    - Implement `generate()` method that creates content matching post type tone and style
+    - Implement `suggestFromHistory()` that uses historical engagement data for recommendations
+    - Integrate with Content Adapter for platform-specific output
+    - _Requirements: 3.1, 3.2, 3.3, 7.4_
+
+- [ ] 8. Implement Agent Orchestrator with Bedrock AgentCore
+  - [ ] 8.1 Implement Agent Orchestrator core
+    - Create `AgentOrchestrator` class integrating with Bedrock AgentCore Runtime
+    - Implement workflow plan decomposition (break complex requests into sub-tasks)
+    - Implement tool invocation dispatch (content generation, scheduling, platform APIs)
+    - Implement reflection loop: on sub-task failure, attempt alternative approach before reporting
+    - Implement execution logging with step-by-step audit trail
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+
+  - [ ]* 8.2 Write property test for orchestrator retry before failure report
+    - **Property 6: Orchestrator retry before failure report**
+    - Generate random workflow plans with random failure injection on sub-tasks
+    - Assert at least one alternative approach is attempted before user failure notification
+    - **Validates: Requirements 4.3**
+
+  - [ ] 8.3 Implement workflow result presentation
+    - Create workflow summary formatter for dashboard display
+    - Implement `getExecutionLog()` for detailed step inspection
+    - Format agent actions and results for user transparency
+    - _Requirements: 4.4, 4.5_
+
+- [ ] 9. Implement Scheduler and Publisher
+  - [ ] 9.1 Implement Scheduler service
+    - Create `SchedulerService` with schedule, cancel, and reschedule operations
+    - Implement SQS message enqueue at specified datetime
+    - Implement calendar query for upcoming posts
+    - Validate that scheduled times are in the future
+    - _Requirements: 5.1, 5.2, 5.5_
+
+  - [ ]* 9.2 Write property test for scheduler queues at specified time
+    - **Property 7: Scheduler queues at specified time**
+    - Generate random future datetimes and random post content
+    - Assert resulting queue entry has publication timestamp equal to user-specified datetime
+    - **Validates: Requirements 5.1**
+
+  - [ ] 9.3 Implement Publisher service (SQS consumer)
+    - Create `PublisherService` that processes SQS messages
+    - Implement multi-platform publish dispatch via PlatformConnectorFactory
+    - Implement retry logic with exponential backoff (max 3 retries per platform)
+    - Implement dead-letter queue routing after retry exhaustion
+    - Implement user notification on publish failure after retries
+    - Handle partial publish (some platforms succeed, some fail)
+    - _Requirements: 5.2, 5.3, 5.4_
+
+  - [ ]* 9.4 Write property test for publish retry bounded at 3
+    - **Property 8: Publish retry bounded at 3**
+    - Generate random publish failures (1-10 consecutive) for various platforms
+    - Assert retry count ≤ 3 and user notification is produced after 3rd failure
+    - **Validates: Requirements 5.4**
+
+- [ ] 10. Implement Analytics Collector
+  - [ ] 10.1 Implement Analytics Collector service
+    - Create `AnalyticsCollectorService` that periodically polls platform metrics
+    - Implement per-platform metric retrieval using platform connectors' `getMetrics()`
+    - Implement metric aggregation across platforms (total likes, shares, comments, impressions)
+    - Implement per-post platform breakdown queries
+    - Store metrics in PostMetricsRepository
+    - _Requirements: 7.1, 7.2, 7.3_
+
+- [ ] 11. Checkpoint - Core services verification
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 12. Implement external integrations
+  - [ ] 12.1 Implement Vapi voice input integration
+    - Create `VapiService` implementing VapiIntegration interface
+    - Implement `transcribeVoiceInput()` for audio-to-text conversion
+    - Implement `isConfigured()` check for graceful degradation
+    - Wire voice transcription output into Content Agent prompt
+    - _Requirements: 9.1, 9.3_
+
+  - [ ] 12.2 Implement Apify trend research integration
+    - Create `ApifyService` implementing ApifyIntegration interface
+    - Implement `researchTrends()` for trending topic discovery
+    - Implement `scrapeCompetitorContent()` for competitive analysis
+    - Implement `isConfigured()` check for graceful degradation
+    - Wire trend data into Content Agent context
+    - _Requirements: 9.2, 9.3_
+
+  - [ ]* 12.3 Write property test for graceful degradation on external tool failure
+    - **Property 11: Graceful degradation on external tool failure**
+    - Generate random workflows with Vapi/Apify availability toggled off
+    - Assert system continues operating without failed tool and notification is produced
+    - **Validates: Requirements 9.3**
+
+- [ ] 13. Implement React dashboard frontend
+  - [ ] 13.1 Initialize React project with routing and state management
+    - Set up React app in `frontend/` with Vite, React Router, and state management (Zustand or Redux Toolkit)
+    - Configure TailwindCSS or component library for responsive design
+    - Set up API client layer for REST and WebSocket connections
+    - Implement authentication flow (login/session management)
+    - _Requirements: 10.1, 10.3_
+
+  - [ ] 13.2 Implement platform connection management UI
+    - Create platform connection page showing all 7 platforms with status indicators
+    - Implement OAuth flow initiation buttons for each platform
+    - Display connected/expired/disconnected status per platform
+    - Show external integration status (Vapi, Apify) with connection indicators
+    - _Requirements: 1.2, 1.3, 1.5, 9.4_
+
+  - [ ] 13.3 Implement compose view with AI content generation
+    - Create unified compose view with text editor, post type selector, and platform preview
+    - Implement AI content generation trigger with loading states
+    - Display platform-specific content previews showing adapted versions
+    - Implement draft editing before publish/schedule
+    - Support voice input button (when Vapi configured)
+    - _Requirements: 3.4, 10.1_
+
+  - [ ] 13.4 Implement scheduling and calendar view
+    - Create calendar view showing scheduled and published posts
+    - Implement date/time picker for scheduling posts
+    - Implement immediate publish button
+    - Display post status indicators (draft, scheduled, published, failed)
+    - Implement cancel and reschedule actions
+    - _Requirements: 5.1, 5.5, 10.2_
+
+  - [ ] 13.5 Implement analytics dashboard view
+    - Create aggregate metrics overview (total likes, shares, comments, impressions)
+    - Implement per-post engagement breakdown with platform-specific metrics
+    - Create chart visualizations for engagement trends over time
+    - _Requirements: 7.2, 7.3_
+
+  - [ ] 13.6 Implement real-time status updates via WebSocket
+    - Create WebSocket connection manager with auto-reconnect and exponential backoff
+    - Implement real-time publish status updates (publishing, published, failed)
+    - Implement real-time workflow progress updates during agent execution
+    - Fall back to polling when WebSocket connection fails
+    - _Requirements: 10.4_
+
+  - [ ] 13.7 Implement post type management UI
+    - Create post type list view with default and custom types
+    - Implement create/edit form for custom post types (platform selection, tone, formatting)
+    - Implement delete confirmation for custom post types
+    - _Requirements: 2.1, 2.2, 2.4_
+
+  - [ ] 13.8 Implement agent workflow transparency view
+    - Create workflow execution log viewer showing planning, tool use, and reflection steps
+    - Display workflow summary on completion
+    - Show step-by-step progress during execution
+    - _Requirements: 4.4, 4.5_
+
+- [ ] 14. Checkpoint - Frontend verification
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 15. Integration wiring and end-to-end tests
+  - [ ] 15.1 Wire API Gateway routes to backend services
+    - Create Express/Fastify REST API with routes for: auth, posts, post-types, schedule, analytics, workflows
+    - Implement WebSocket upgrade handling for real-time updates
+    - Wire API middleware: authentication, validation, error handling
+    - Connect all service classes to API route handlers
+    - _Requirements: 10.1, 10.4_
+
+  - [ ]* 15.2 Write integration tests for platform OAuth flows
+    - Mock OAuth servers for each platform
+    - Test full auth cycle: initiate → callback → token storage → refresh
+    - _Requirements: 1.1, 1.4_
+
+  - [ ]* 15.3 Write integration tests for publish pipeline
+    - Test end-to-end publish from SQS enqueue to mock platform API calls
+    - Test partial publish scenarios (some succeed, some fail)
+    - Test retry exhaustion and dead-letter queue routing
+    - _Requirements: 5.2, 5.3, 5.4_
+
+  - [ ]* 15.4 Write integration tests for model provider calls
+    - Mock Bedrock and Cerebras endpoints
+    - Test request/response handling, caching, and fallback behavior
+    - _Requirements: 8.1, 8.2, 8.4, 8.5_
+
+  - [ ]* 15.5 Write integration tests for external tool integrations
+    - Mock Vapi transcription API and verify audio-to-text pipeline
+    - Mock Apify actor API and verify trend data retrieval
+    - Test graceful degradation when services are unavailable
+    - _Requirements: 9.1, 9.2, 9.3_
+
+  - [ ]* 15.6 Write end-to-end test for compose → schedule → publish → analytics flow
+    - Test full lifecycle with mock external services
+    - Verify post status transitions: draft → scheduled → publishing → published
+    - Verify analytics collection after publish
+    - _Requirements: 3.1, 5.1, 5.2, 7.1_
+
+  - [ ]* 15.7 Write end-to-end test for multi-platform simultaneous publish
+    - Test publishing to all 7 platforms simultaneously with mixed success/failure
+    - Verify partial publish handling and retry behavior
+    - _Requirements: 5.2, 5.4_
+
+  - [ ]* 15.8 Write end-to-end test for agent workflow execution
+    - Test "create a week of posts" workflow decomposition and execution
+    - Verify plan creation, tool use, and result summary
+    - _Requirements: 4.1, 4.2, 4.5_
+
+- [ ] 16. Final checkpoint - Full system verification
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
@@ -306,10 +411,11 @@ This plan implements a full-stack TypeScript Social Media Manager application wi
 - Tasks marked with `*` are optional and can be skipped for faster MVP
 - Each task references specific requirements for traceability
 - Checkpoints ensure incremental validation
+- Property tests validate universal correctness properties from the design document using fast-check
 - Unit tests validate specific examples and edge cases
-- The design uses TypeScript end-to-end so all implementation uses TypeScript
-- No property-based tests are included as the design does not define correctness properties
-- External integrations (Vapi, Apify) are optional and gracefully degradable
+- All infrastructure is defined as Pulumi TypeScript IaC in the `infra/` package
+- The backend uses TypeScript/Node.js aligned with the Pulumi language choice
+- External APIs (platforms, Vapi, Apify, model providers) should be mocked in tests using dependency injection
 
 ## Task Dependency Graph
 
@@ -318,18 +424,25 @@ This plan implements a full-stack TypeScript Social Media Manager application wi
   "waves": [
     { "id": 0, "tasks": ["1.1"] },
     { "id": 1, "tasks": ["1.2", "1.3"] },
-    { "id": 2, "tasks": ["1.4", "2.1"] },
-    { "id": 3, "tasks": ["2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9"] },
-    { "id": 4, "tasks": ["2.10", "4.1"] },
-    { "id": 5, "tasks": ["4.2", "4.3", "5.1", "5.2"] },
-    { "id": 6, "tasks": ["4.4", "5.3"] },
-    { "id": 7, "tasks": ["4.5", "6.1"] },
-    { "id": 8, "tasks": ["6.2", "6.3", "9.1"] },
-    { "id": 9, "tasks": ["8.1", "8.2", "8.3", "8.4", "8.5", "9.2"] },
-    { "id": 10, "tasks": ["8.6", "8.7"] },
-    { "id": 11, "tasks": ["10.1", "11.1"] },
-    { "id": 12, "tasks": ["10.2", "10.3", "10.4", "10.5", "10.6", "10.7"] },
-    { "id": 13, "tasks": ["10.8"] }
+    { "id": 2, "tasks": ["2.1", "2.3", "2.5"] },
+    { "id": 3, "tasks": ["2.2", "2.4"] },
+    { "id": 4, "tasks": ["4.1", "5.1"] },
+    { "id": 5, "tasks": ["4.2", "4.3", "4.4", "4.5", "4.6", "4.7", "4.8", "4.9", "5.2"] },
+    { "id": 6, "tasks": ["5.3"] },
+    { "id": 7, "tasks": ["5.4", "5.5", "5.6"] },
+    { "id": 8, "tasks": ["7.1", "7.2"] },
+    { "id": 9, "tasks": ["7.3", "7.5"] },
+    { "id": 10, "tasks": ["7.4", "8.1"] },
+    { "id": 11, "tasks": ["8.2", "8.3"] },
+    { "id": 12, "tasks": ["9.1"] },
+    { "id": 13, "tasks": ["9.2", "9.3"] },
+    { "id": 14, "tasks": ["9.4", "10.1"] },
+    { "id": 15, "tasks": ["12.1", "12.2"] },
+    { "id": 16, "tasks": ["12.3"] },
+    { "id": 17, "tasks": ["13.1"] },
+    { "id": 18, "tasks": ["13.2", "13.3", "13.4", "13.5", "13.6", "13.7", "13.8"] },
+    { "id": 19, "tasks": ["15.1"] },
+    { "id": 20, "tasks": ["15.2", "15.3", "15.4", "15.5", "15.6", "15.7", "15.8"] }
   ]
 }
 ```

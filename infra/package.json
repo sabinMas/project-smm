@@ -1,0 +1,12 @@
+{
+  "name": "@smm/infra",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.ts",
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@smm/shared": "*"
+  }
+}
