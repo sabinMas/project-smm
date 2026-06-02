@@ -1,4 +1,5 @@
-const BASE = '/api';
+// Use env var in production, fall back to relative /api for dev
+const BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
