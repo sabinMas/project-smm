@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import { resolve } from 'path';
 
-dotenv.config();
+// Load .env from monorepo root (works whether running from backend/ or root)
+dotenv.config({ path: resolve(process.cwd(), '../.env') });
+dotenv.config(); // fallback: local .env in cwd
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),

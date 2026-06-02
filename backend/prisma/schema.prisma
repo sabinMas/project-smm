@@ -31,7 +31,6 @@ model PlatformConnection {
   lastRefreshedAt      DateTime @default(now())
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  posts Post[]
 
   @@unique([userId, platformId])
   @@index([userId])
@@ -44,7 +43,7 @@ model PostType {
   isDefault               Boolean  @default(false)
   targetPlatforms         String[] @db.VarChar
   toneDescriptor          String
-  formattingPreferencesJson String  @db.JsonB
+  formattingPreferencesJson Json
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   posts Post[]
@@ -132,7 +131,7 @@ model WorkflowLog {
   userId      String
   instruction String
   status      String
-  stepsJson   String   @db.JsonB
+  stepsJson   Json
   startedAt   DateTime @default(now())
   completedAt DateTime?
   summary     String?
