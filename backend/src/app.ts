@@ -225,6 +225,11 @@ app.post('/api/auth/connect', async (req, res, next) => {
     const userId = (req.user as { id: string }).id;
     const { platformId } = req.body as { platformId: PlatformId };
     const callbackBase = `${env.PUBLIC_BACKEND_URL}/auth/callback`;
+    
+    console.log(`[X OAuth] User ${userId} connecting ${platformId}`);
+    console.log(`[X OAuth] Callback base: ${callbackBase}`);
+    console.log(`[X OAuth] Client ID: ${env.X_CLIENT_ID?.substring(0, 10)}...`);
+    
     const urls: Partial<Record<PlatformId, string>> = {
       x: `https://twitter.com/i/oauth2/authorize?client_id=${env.X_CLIENT_ID}&redirect_uri=${callbackBase}/x&response_type=code&scope=tweet.write%20tweet.read%20users.read%20offline.access&state=${userId}`,
       linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=${env.LINKEDIN_CLIENT_ID}&redirect_uri=${callbackBase}/linkedin&response_type=code&scope=w_member_social%20r_liteprofile&state=${userId}`,
@@ -232,7 +237,10 @@ app.post('/api/auth/connect', async (req, res, next) => {
       instagram: `https://api.instagram.com/oauth/authorize?client_id=${env.INSTAGRAM_APP_ID}&redirect_uri=${callbackBase}/instagram&scope=instagram_basic%20instagram_content_publish&response_type=code&state=${userId}`,
       tiktok: `https://www.tiktok.com/v2/auth/authorize?client_key=${env.TIKTOK_CLIENT_KEY}&redirect_uri=${callbackBase}/tiktok&response_type=code&scope=video.publish&state=${userId}`,
     };
-    res.json({ authUrl: urls[platformId] ?? '#not-configured' });
+    
+    const authUrl = urls[platformId] ?? '#not-configured';
+    console.log(`[X OAuth] Auth URL: ${authUrl.substring(0, 100)}...`);
+    res.json({ authUrl });
   } catch (e) { next(e); }
 });
 
@@ -242,19 +250,23 @@ app.get('/auth/callback/x', async (req, res) => {
   try {
     const { code, state, error, error_description } = req.query;
     
+    console.log('[X OAuth Callback] Received query params:', { code: code ? 'present' : 'missing', state: state ? 'present' : 'missing', error, error_description });
+    
     // X OAuth error
     if (error) {
-      console.error('X OAuth error:', error, error_description);
+      console.error('[X OAuth Callback] X API error:', error, error_description);
       return res.redirect(`${frontendUrl}/connections?error=${error}`);
     }
 
     const userId = state as string;
 
     if (!code || !userId) {
+      console.error('[X OAuth Callback] Missing code or userId', { code: !!code, userId: !!userId });
       return res.redirect(`${frontendUrl}/connections?error=auth_failed`);
     }
 
     const callbackUrl = `${env.PUBLIC_BACKEND_URL}/auth/callback/x`;
+    console.log(`[X OAuth Callback] Exchanging code for token. Callback URL: ${callbackUrl}`);
 
     // Exchange authorization code for access token
     const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
@@ -272,17 +284,19 @@ app.get('/auth/callback/x', async (req, res) => {
 
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text();
-      console.error('X token exchange failed:', errBody);
+      console.error('[X OAuth Callback] Token exchange failed:', tokenRes.status, errBody);
       return res.redirect(`${frontendUrl}/connections?error=token_exchange_failed`);
     }
 
     const tokenData = await tokenRes.json() as { access_token: string; refresh_token?: string; expires_in: number };
+    console.log('[X OAuth Callback] Token received successfully');
 
     // Get the user's X profile to store their username
     const profileRes = await fetch('https://api.twitter.com/2/users/me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const profile = await profileRes.json() as { data?: { username: string; id: string } };
+    console.log('[X OAuth Callback] Profile retrieved:', profile.data?.username);
 
     // Store the connection
     await connectionService.storeConnection(userId, 'x', {
@@ -292,10 +306,12 @@ app.get('/auth/callback/x', async (req, res) => {
       username: profile.data?.username || 'unknown',
       platformUserId: profile.data?.id || '',
     });
+    
+    console.log(`[X OAuth Callback] Connection stored for user ${userId}`);
 
     res.redirect(`${frontendUrl}/connections?connected=x`);
   } catch (e) {
-    console.error('X OAuth callback error:', e);
+    console.error('[X OAuth Callback] Error:', e);
     res.redirect(`${frontendUrl}/connections?error=callback_failed`);
   }
 });
