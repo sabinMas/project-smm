@@ -15,7 +15,7 @@ import type { PlatformId, ContentPrompt } from '@smm/shared';
 const app = express();
 const wsInstance = expressWs(app);
 
-// ── CORS ────────────────────────────────────────────────────────────────────
+// CORS
 const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
 
 app.use(express.json());
@@ -39,19 +39,19 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// ── Session + Passport ──────────────────────────────────────────────────────
+// Session + Passport
 app.set('trust proxy', 1); // Railway/Vercel sit behind a reverse proxy
 app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ── Auth routes (public) ────────────────────────────────────────────────────
+// Auth routes (public)
 app.use(authRoutes);
 
-// ── Health (public) ─────────────────────────────────────────────────────────
+// Health (public)
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-// ── Bootstrap default post types for new users ──────────────────────────────
+// Bootstrap default post types for new users
 async function ensureDefaultPostTypes(userId: string) {
   const existing = await prisma.postType.count({ where: { userId } });
   if (existing === 0) {
@@ -88,10 +88,10 @@ async function ensureDefaultPostTypes(userId: string) {
   }
 }
 
-// ── All /api/* routes require authentication ─────────────────────────────────
+// All /api/* routes require authentication
 app.use('/api', requireAuth);
 
-// ── Post Types ───────────────────────────────────────────────────────────────
+// Post Types
 app.get('/api/post-types', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -121,7 +121,7 @@ app.delete('/api/post-types/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Posts ────────────────────────────────────────────────────────────────────
+// Posts
 app.get('/api/posts', async (req, res, next) => {
   try {
     res.json(await postService.getUserPosts(getUserId(req)));
@@ -143,7 +143,7 @@ app.delete('/api/posts/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Content Generation ───────────────────────────────────────────────────────
+// Content Generation
 app.post('/api/content/generate', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -161,7 +161,7 @@ app.post('/api/content/generate', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Publish & Schedule ───────────────────────────────────────────────────────
+// Publish & Schedule
 app.post('/api/posts/publish', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -208,7 +208,7 @@ app.get('/api/schedule', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Connections ──────────────────────────────────────────────────────────────
+// Connections
 app.get('/api/connections', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -236,27 +236,17 @@ app.post('/api/auth/connect', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── OAuth Callback — exchange code for token and store connection ─────────────
+// OAuth Callback - exchange code for token and store connection
 app.get('/auth/callback/x', async (req, res) => {
   const frontendUrl = env.CORS_ORIGIN.split(',')[0].trim();
   try {
     const { code, state } = req.query;
-    if (!code) {
-      return res.redirect(`${frontendUrl}/connections?error=missing_code`);
+    const userId = state as string;
+
+    if (!code || !userId) {
+      return res.redirect(`${frontendUrl}/connections?error=auth_failed`);
     }
 
-    // Get userId from state parameter (set during /api/auth/connect)
-    let userId = state as string;
-    
-    // Fall back to session if state is not available
-    if (!userId && req.isAuthenticated()) {
-      userId = (req.user as { id: string }).id;
-    }
-    
-    // If still no userId, cannot proceed
-    if (!userId) {
-      return res.redirect(`${frontendUrl}/login?error=session_expired&return_to=/connections`);
-    }
     const callbackUrl = `${env.PUBLIC_BACKEND_URL}/auth/callback/x`;
 
     // Exchange authorization code for access token
@@ -311,7 +301,7 @@ app.delete('/api/connections/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Analytics ────────────────────────────────────────────────────────────────
+// Analytics
 app.get('/api/analytics', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -328,7 +318,7 @@ app.post('/api/analytics/collect/:postId', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Workflows ────────────────────────────────────────────────────────────────
+// Workflows
 app.get('/api/workflows', async (req, res, next) => {
   try {
     const userId = getUserId(req);
@@ -341,7 +331,7 @@ app.get('/api/workflows', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── WebSocket (real-time updates) ────────────────────────────────────────────
+// WebSocket (real-time updates)
 const wsClients = new Set<any>();
 
 (app as any).ws('/ws', (ws: any) => {
@@ -357,7 +347,7 @@ export function broadcast(event: string, data: unknown) {
   }
 }
 
-// ── Error handler ────────────────────────────────────────────────────────────
+// Error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
   res.status(500).json({ error: err.message });
