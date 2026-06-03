@@ -222,15 +222,71 @@ app.post('/api/auth/connect', async (req, res, next) => {
     const { platformId } = req.body as { platformId: PlatformId };
     const callbackBase = `${env.PUBLIC_BACKEND_URL}/auth/callback`;
     const urls: Partial<Record<PlatformId, string>> = {
-      x: `https://twitter.com/i/oauth2/authorize?client_id=${env.X_CLIENT_ID}&redirect_uri=${callbackBase}/x&response_type=code&scope=tweet.write+tweet.read+users.read&code_challenge=challenge&code_challenge_method=plain`,
+      x: `https://twitter.com/i/oauth2/authorize?client_id=${env.X_CLIENT_ID}&redirect_uri=${callbackBase}/x&response_type=code&scope=tweet.write+tweet.read+users.read+offline.access&code_challenge=challenge&code_challenge_method=plain&state=x`,
       linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=${env.LINKEDIN_CLIENT_ID}&redirect_uri=${callbackBase}/linkedin&response_type=code&scope=w_member_social+r_liteprofile`,
       facebook: `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.FACEBOOK_APP_ID}&redirect_uri=${callbackBase}/facebook&scope=pages_manage_posts`,
       instagram: `https://api.instagram.com/oauth/authorize?client_id=${env.INSTAGRAM_APP_ID}&redirect_uri=${callbackBase}/instagram&scope=instagram_basic+instagram_content_publish&response_type=code`,
       tiktok: `https://www.tiktok.com/v2/auth/authorize?client_key=${env.TIKTOK_CLIENT_KEY}&redirect_uri=${callbackBase}/tiktok&response_type=code&scope=video.publish`,
-      bluesky: '#bluesky-app-password',
     };
     res.json({ authUrl: urls[platformId] ?? '#not-configured' });
   } catch (e) { next(e); }
+});
+
+// ── OAuth Callback — exchange code for token and store connection ─────────────
+app.get('/auth/callback/x', async (req, res) => {
+  const frontendUrl = env.CORS_ORIGIN.split(',')[0].trim();
+  try {
+    const { code } = req.query;
+    if (!code || !req.isAuthenticated()) {
+      return res.redirect(`${frontendUrl}/connections?error=auth_failed`);
+    }
+
+    const userId = (req.user as { id: string }).id;
+    const callbackUrl = `${env.PUBLIC_BACKEND_URL}/auth/callback/x`;
+
+    // Exchange authorization code for access token
+    const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`).toString('base64')}`,
+      },
+      body: new URLSearchParams({
+        code: code as string,
+        grant_type: 'authorization_code',
+        redirect_uri: callbackUrl,
+        code_verifier: 'challenge',
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      console.error('X token exchange failed:', errBody);
+      return res.redirect(`${frontendUrl}/connections?error=token_exchange_failed`);
+    }
+
+    const tokenData = await tokenRes.json() as { access_token: string; refresh_token?: string; expires_in: number };
+
+    // Get the user's X profile to store their username
+    const profileRes = await fetch('https://api.twitter.com/2/users/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const profile = await profileRes.json() as { data?: { username: string; id: string } };
+
+    // Store the connection
+    await connectionService.storeConnection(userId, 'x', {
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token || '',
+      expiresIn: tokenData.expires_in,
+      username: profile.data?.username || 'unknown',
+      platformUserId: profile.data?.id || '',
+    });
+
+    res.redirect(`${frontendUrl}/connections?connected=x`);
+  } catch (e) {
+    console.error('X OAuth callback error:', e);
+    res.redirect(`${frontendUrl}/connections?error=callback_failed`);
+  }
 });
 
 app.delete('/api/connections/:id', async (req, res, next) => {
