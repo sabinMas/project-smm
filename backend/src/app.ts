@@ -240,7 +240,14 @@ app.post('/api/auth/connect', async (req, res, next) => {
 app.get('/auth/callback/x', async (req, res) => {
   const frontendUrl = env.CORS_ORIGIN.split(',')[0].trim();
   try {
-    const { code, state } = req.query;
+    const { code, state, error, error_description } = req.query;
+    
+    // X OAuth error
+    if (error) {
+      console.error('X OAuth error:', error, error_description);
+      return res.redirect(`${frontendUrl}/connections?error=${error}`);
+    }
+
     const userId = state as string;
 
     if (!code || !userId) {
