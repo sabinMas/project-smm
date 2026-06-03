@@ -226,10 +226,10 @@ app.post('/api/auth/connect', async (req, res, next) => {
     const { platformId } = req.body as { platformId: PlatformId };
     const callbackBase = `${env.PUBLIC_BACKEND_URL}/auth/callback`;
     const urls: Partial<Record<PlatformId, string>> = {
-      x: `https://twitter.com/i/oauth2/authorize?client_id=${env.X_CLIENT_ID}&redirect_uri=${callbackBase}/x&response_type=code&scope=tweet.write+tweet.read+users.read+offline.access&code_challenge=challenge&code_challenge_method=plain&state=${userId}`,
-      linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=${env.LINKEDIN_CLIENT_ID}&redirect_uri=${callbackBase}/linkedin&response_type=code&scope=w_member_social+r_liteprofile&state=${userId}`,
+      x: `https://twitter.com/i/oauth2/authorize?client_id=${env.X_CLIENT_ID}&redirect_uri=${callbackBase}/x&response_type=code&scope=tweet.write%20tweet.read%20users.read%20offline.access&state=${userId}`,
+      linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=${env.LINKEDIN_CLIENT_ID}&redirect_uri=${callbackBase}/linkedin&response_type=code&scope=w_member_social%20r_liteprofile&state=${userId}`,
       facebook: `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.FACEBOOK_APP_ID}&redirect_uri=${callbackBase}/facebook&scope=pages_manage_posts&state=${userId}`,
-      instagram: `https://api.instagram.com/oauth/authorize?client_id=${env.INSTAGRAM_APP_ID}&redirect_uri=${callbackBase}/instagram&scope=instagram_basic+instagram_content_publish&response_type=code&state=${userId}`,
+      instagram: `https://api.instagram.com/oauth/authorize?client_id=${env.INSTAGRAM_APP_ID}&redirect_uri=${callbackBase}/instagram&scope=instagram_basic%20instagram_content_publish&response_type=code&state=${userId}`,
       tiktok: `https://www.tiktok.com/v2/auth/authorize?client_key=${env.TIKTOK_CLIENT_KEY}&redirect_uri=${callbackBase}/tiktok&response_type=code&scope=video.publish&state=${userId}`,
     };
     res.json({ authUrl: urls[platformId] ?? '#not-configured' });
@@ -267,7 +267,6 @@ app.get('/auth/callback/x', async (req, res) => {
         code: code as string,
         grant_type: 'authorization_code',
         redirect_uri: callbackUrl,
-        code_verifier: 'challenge',
       }),
     });
 
