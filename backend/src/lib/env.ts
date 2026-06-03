@@ -10,7 +10,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url().optional(),
+  REDIS_URL: z.string().optional(),
   // Comma-separated list of allowed CORS origins (the deployed frontend URL).
   // Defaults to the local Vite dev server.
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
