@@ -11,13 +11,45 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
+  password  String?  // null for social-only logins
+  avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  accounts          Account[]
+  sessions          Session[]
   connections       PlatformConnection[]
   postTypes         PostType[]
   posts             Post[]
   workflowLogs      WorkflowLog[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String   // "google" | "github"
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         Int?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  sid       String   @unique
+  userId    String
+  data      String   @db.Text
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model PlatformConnection {

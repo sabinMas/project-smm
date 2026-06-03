@@ -9,48 +9,102 @@ import { schedulerService } from '@/services/SchedulerService';
 import { publisherService } from '@/services/PublisherService';
 import { analyticsService } from '@/services/AnalyticsService';
 import { env } from '@/lib/env';
+import { sessionMiddleware, passport, authRoutes, requireAuth, getUserId } from '@/auth';
 import type { PlatformId, ContentPrompt } from '@smm/shared';
 
 const app = express();
 const wsInstance = expressWs(app);
 
+// ── CORS ────────────────────────────────────────────────────────────────────
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
+
 app.use(express.json());
-app.use((_req: Request, res: Response, next: NextFunction) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (allowedOrigins.includes('*')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  } else if (allowedOrigins[0]) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigins[0]);
+  }
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (_req.method === 'OPTIONS') {
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') {
     res.sendStatus(204);
     return;
   }
   next();
 });
 
-// Resolve the seeded user ID at startup
-let DEFAULT_USER_ID = '';
-export async function resolveDefaultUser() {
-  const user = await prisma.user.findUnique({ where: { email: 'masonsabin@gmail.com' } });
-  if (!user) throw new Error('Default user not found — run: npm run seed');
-  DEFAULT_USER_ID = user.id;
-  console.log(`✅ Default user: ${user.email} (${user.id})`);
+// ── Session + Passport ──────────────────────────────────────────────────────
+app.set('trust proxy', 1); // Railway/Vercel sit behind a reverse proxy
+app.use(sessionMiddleware);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// ── Auth routes (public) ────────────────────────────────────────────────────
+app.use(authRoutes);
+
+// ── Health (public) ─────────────────────────────────────────────────────────
+app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+// ── Bootstrap default post types for new users ──────────────────────────────
+async function ensureDefaultPostTypes(userId: string) {
+  const existing = await prisma.postType.count({ where: { userId } });
+  if (existing === 0) {
+    await prisma.postType.createMany({
+      data: [
+        {
+          userId,
+          name: 'Business Forward',
+          isDefault: true,
+          targetPlatforms: ['linkedin', 'x'],
+          toneDescriptor: 'Professional, thought-leadership, data-driven',
+          formattingPreferencesJson: {
+            useEmojis: false,
+            hashtagStyle: 'minimal',
+            linkPlacement: 'end',
+            mentionStyle: 'formal',
+          },
+        },
+        {
+          userId,
+          name: 'Personal',
+          isDefault: true,
+          targetPlatforms: ['x', 'instagram', 'bluesky', 'facebook', 'tiktok'],
+          toneDescriptor: 'Casual, authentic, conversational',
+          formattingPreferencesJson: {
+            useEmojis: true,
+            hashtagStyle: 'moderate',
+            linkPlacement: 'inline',
+            mentionStyle: 'casual',
+          },
+        },
+      ],
+    });
+  }
 }
 
-const uid = () => DEFAULT_USER_ID;
-
-// ── Health ──────────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', userId: uid() }));
+// ── All /api/* routes require authentication ─────────────────────────────────
+app.use('/api', requireAuth);
 
 // ── Post Types ───────────────────────────────────────────────────────────────
-app.get('/api/post-types', async (_req, res, next) => {
+app.get('/api/post-types', async (req, res, next) => {
   try {
-    res.json(await postTypeService.getUserPostTypes(uid()));
+    const userId = getUserId(req);
+    await ensureDefaultPostTypes(userId);
+    res.json(await postTypeService.getUserPostTypes(userId));
   } catch (e) { next(e); }
 });
 
 app.post('/api/post-types', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const { name, targetPlatforms, toneDescriptor, formattingPreferences } = req.body;
-    res.json(await postTypeService.createPostType(uid(), name, targetPlatforms, toneDescriptor, formattingPreferences));
+    res.json(await postTypeService.createPostType(userId, name, targetPlatforms, toneDescriptor, formattingPreferences));
   } catch (e) { next(e); }
 });
 
@@ -68,16 +122,17 @@ app.delete('/api/post-types/:id', async (req, res, next) => {
 });
 
 // ── Posts ────────────────────────────────────────────────────────────────────
-app.get('/api/posts', async (_req, res, next) => {
+app.get('/api/posts', async (req, res, next) => {
   try {
-    res.json(await postService.getUserPosts(uid()));
+    res.json(await postService.getUserPosts(getUserId(req)));
   } catch (e) { next(e); }
 });
 
 app.post('/api/posts', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const { postTypeId, originalContent, targetPlatforms } = req.body;
-    res.json(await postService.createPost(uid(), postTypeId, originalContent, targetPlatforms));
+    res.json(await postService.createPost(userId, postTypeId, originalContent, targetPlatforms));
   } catch (e) { next(e); }
 });
 
@@ -91,8 +146,9 @@ app.delete('/api/posts/:id', async (req, res, next) => {
 // ── Content Generation ───────────────────────────────────────────────────────
 app.post('/api/content/generate', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const { userInput, postTypeId, targetPlatforms } = req.body;
-    const postTypes = await postTypeService.getUserPostTypes(uid());
+    const postTypes = await postTypeService.getUserPostTypes(userId);
     const postType = postTypes.find((pt) => pt.id === postTypeId);
     if (!postType) return res.status(404).json({ error: 'Post type not found' });
 
@@ -108,8 +164,9 @@ app.post('/api/content/generate', async (req, res, next) => {
 // ── Publish & Schedule ───────────────────────────────────────────────────────
 app.post('/api/posts/publish', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const { originalContent, postTypeId, targetPlatforms } = req.body;
-    const post = await postService.createPost(uid(), postTypeId, originalContent, targetPlatforms);
+    const post = await postService.createPost(userId, postTypeId, originalContent, targetPlatforms);
     const result = await publisherService.publishPost(post.id);
     res.json(result);
   } catch (e) { next(e); }
@@ -123,8 +180,9 @@ app.post('/api/posts/:id/publish', async (req, res, next) => {
 
 app.post('/api/schedule', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const { originalContent, postTypeId, targetPlatforms, scheduledAt } = req.body;
-    const post = await postService.createPost(uid(), postTypeId, originalContent, targetPlatforms);
+    const post = await postService.createPost(userId, postTypeId, originalContent, targetPlatforms);
     await schedulerService.schedulePost(post.id, new Date(scheduledAt));
     res.json({ postId: post.id, scheduledAt });
   } catch (e) { next(e); }
@@ -139,9 +197,10 @@ app.delete('/api/schedule/:id', async (req, res, next) => {
 
 app.get('/api/schedule', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const { from, to } = req.query;
     const posts = await postService.getScheduledPosts(
-      uid(),
+      userId,
       new Date(from as string),
       new Date(to as string)
     );
@@ -150,10 +209,10 @@ app.get('/api/schedule', async (req, res, next) => {
 });
 
 // ── Connections ──────────────────────────────────────────────────────────────
-app.get('/api/connections', async (_req, res, next) => {
+app.get('/api/connections', async (req, res, next) => {
   try {
-    const conns = await connectionService.getUserConnections(uid());
-    // Strip encrypted token data before sending to client
+    const userId = getUserId(req);
+    const conns = await connectionService.getUserConnections(userId);
     res.json(conns.map(({ encryptedTokenData: _, ...rest }) => rest));
   } catch (e) { next(e); }
 });
@@ -161,7 +220,7 @@ app.get('/api/connections', async (_req, res, next) => {
 app.post('/api/auth/connect', async (req, res, next) => {
   try {
     const { platformId } = req.body as { platformId: PlatformId };
-    const callbackBase = 'http://localhost:3000/auth/callback';
+    const callbackBase = `${env.PUBLIC_BACKEND_URL}/auth/callback`;
     const urls: Partial<Record<PlatformId, string>> = {
       x: `https://twitter.com/i/oauth2/authorize?client_id=${env.X_CLIENT_ID}&redirect_uri=${callbackBase}/x&response_type=code&scope=tweet.write+tweet.read+users.read&code_challenge=challenge&code_challenge_method=plain`,
       linkedin: `https://www.linkedin.com/oauth/v2/authorization?client_id=${env.LINKEDIN_CLIENT_ID}&redirect_uri=${callbackBase}/linkedin&response_type=code&scope=w_member_social+r_liteprofile`,
@@ -184,9 +243,10 @@ app.delete('/api/connections/:id', async (req, res, next) => {
 // ── Analytics ────────────────────────────────────────────────────────────────
 app.get('/api/analytics', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const to = req.query.to ? new Date(req.query.to as string) : new Date();
     const from = req.query.from ? new Date(req.query.from as string) : new Date(Date.now() - 30 * 86400000);
-    res.json(await analyticsService.getDashboardMetrics(uid(), from, to));
+    res.json(await analyticsService.getDashboardMetrics(userId, from, to));
   } catch (e) { next(e); }
 });
 
@@ -198,10 +258,11 @@ app.post('/api/analytics/collect/:postId', async (req, res, next) => {
 });
 
 // ── Workflows ────────────────────────────────────────────────────────────────
-app.get('/api/workflows', async (_req, res, next) => {
+app.get('/api/workflows', async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const logs = await prisma.workflowLog.findMany({
-      where: { userId: uid() },
+      where: { userId },
       orderBy: { startedAt: 'desc' },
       take: 50,
     });

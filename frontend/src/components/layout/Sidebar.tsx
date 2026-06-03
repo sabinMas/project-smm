@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
+import { useAuthStore } from '@/store/authStore';
 
 const nav = [
   { to: '/compose', label: 'Compose', icon: '✏️' },
@@ -11,6 +12,14 @@ const nav = [
 ];
 
 export default function Sidebar() {
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <aside className="hidden md:flex flex-col w-60 bg-surface-1 border-r border-white/10">
       <div className="px-5 py-5 border-b border-white/10">
@@ -40,13 +49,28 @@ export default function Sidebar() {
       </nav>
       <div className="px-4 py-4 border-t border-white/10">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-brand-500/30 flex items-center justify-center text-xs font-bold text-brand-500">
-            M
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="w-7 h-7 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-brand-500/30 flex items-center justify-center text-xs font-bold text-brand-500">
+              {user?.name?.charAt(0).toUpperCase() || '?'}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-white truncate">{user?.name}</p>
+            <p className="text-xs text-white/40 truncate">{user?.email}</p>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-white truncate">Mason Sabin</p>
-            <p className="text-xs text-white/40 truncate">masonsabin@gmail.com</p>
-          </div>
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            className="text-white/30 hover:text-white/70 transition-colors text-sm"
+          >
+            ↪
+          </button>
         </div>
       </div>
     </aside>

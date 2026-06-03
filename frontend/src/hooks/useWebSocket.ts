@@ -14,8 +14,22 @@ export function useWebSocket(url = '/ws') {
   const [connected, setConnected] = useState(false);
 
   const connect = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}${url}`;
+    // Prefer an explicit WS URL (production), else derive from the API URL,
+    // else fall back to the current host (local dev via Vite proxy).
+    const explicitWs = import.meta.env.VITE_WS_URL as string | undefined;
+    const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+
+    let wsUrl: string;
+    if (explicitWs) {
+      wsUrl = explicitWs;
+    } else if (apiUrl) {
+      // Turn http(s)://host/api into ws(s)://host/ws
+      wsUrl = apiUrl.replace(/^http/, 'ws').replace(/\/api\/?$/, '') + url;
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}${url}`;
+    }
+
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

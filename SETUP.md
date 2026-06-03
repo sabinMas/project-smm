@@ -121,8 +121,55 @@ You can develop and preview everything without these. Only add them when you wan
 ## Hosting
 
 When ready to deploy, you can host on:
-- **Backend + DB**: [Railway](https://railway.app) (free hobby tier, GitHub deploy)
+- **Backend + DB**: [Render](https://render.com) (free tier, GitHub deploy)
 - **Frontend**: [Vercel](https://vercel.com) (free, GitHub deploy)
-- **Redis**: [Upstash](https://upstash.com) (same account as above, already free)
+- **Redis**: [Upstash](https://upstash.com) (optional, free tier available)
 
-The same `.env` variables apply on each hosting platform — just paste them into the platform's environment settings dashboard.
+### Backend on Render
+
+1. Go to [render.com/dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
+2. Connect your GitHub repo. Render reads `render.yaml` at the repo root and
+   creates the web service + PostgreSQL database automatically.
+3. Set these environment variables in the Render service (marked `sync: false`
+   in the blueprint — Render will prompt you for them):
+
+   | Variable | Value |
+   |----------|-------|
+   | `DATABASE_URL` | (auto-set by the Blueprint from the `smm-db` database) |
+   | `CEREBRAS_API_KEY` | your Cerebras key (required) |
+   | `SESSION_SECRET` | a random 32+ char string |
+   | `CORS_ORIGIN` | your Vercel URL, e.g. `https://project-smm.vercel.app` |
+   | `PUBLIC_BACKEND_URL` | your Render URL, e.g. `https://smm-backend.onrender.com` |
+   | `GOOGLE_CLIENT_ID` | from Google Cloud Console |
+   | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
+   | `GITHUB_CLIENT_ID` | from GitHub Developer Settings |
+   | `GITHUB_CLIENT_SECRET` | from GitHub Developer Settings |
+   | `ENCRYPTION_KEY` | a random 32+ char string |
+   | `REDIS_URL` | (optional) your Upstash `rediss://...` URL |
+   | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | (optional) for Bedrock fallback |
+
+   The start command runs `prisma migrate deploy` automatically, and the app
+   bootstraps default post types per-user on first login — no manual seed step needed.
+4. Render exposes the service on a `.onrender.com` URL and uses `/health` for
+   health checks.
+
+> **Note:** Render free tier sleeps after 15 minutes of inactivity. First request
+> after sleep takes ~30s. For always-on, upgrade to the Starter plan ($7/mo).
+
+### Frontend on Vercel
+
+1. Import the same GitHub repo into Vercel.
+2. Set the **Root Directory** to `frontend`. The `frontend/vercel.json` handles the
+   monorepo install/build (it installs from the repo root so the `@smm/shared`
+   workspace resolves).
+3. Add this environment variable in the Vercel project settings:
+
+   | Variable | Value |
+   |----------|-------|
+   | `VITE_API_URL` | your Render backend URL **with** `/api`, e.g. `https://smm-backend.onrender.com/api` |
+   | `VITE_WS_URL` | (optional) `wss://smm-backend.onrender.com/ws` — derived from `VITE_API_URL` if omitted |
+
+   `VITE_*` vars are baked in at build time, so redeploy after changing them.
+
+The same `.env` variables apply on each hosting platform — just paste them into the
+platform's environment settings dashboard.
