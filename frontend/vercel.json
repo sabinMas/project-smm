@@ -1,7 +1,7 @@
 {
   "framework": "vite",
   "installCommand": "cd .. && npm install",
-  "buildCommand": "cd .. && npm run build --workspace=@smm/frontend",
+  "buildCommand": "cd .. && npm run build --workspace=@smm/shared && npm run build --workspace=@smm/frontend",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
