@@ -88,22 +88,42 @@ router.get('/auth/me', (req: Request, res: Response) => {
 });
 
 // ── Google OAuth ────────────────────────────────────────────────────────────
-router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/auth/google', (req: Request, res: Response, next: NextFunction) => {
+  if (!passport._strategies?.google) {
+    return res.status(501).json({ error: 'Google login not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.' });
+  }
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 
 router.get(
   '/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login?error=google_failed` }),
+  (req: Request, res: Response, next: NextFunction) => {
+    if (!passport._strategies?.google) {
+      return res.redirect(`${FRONTEND_URL}/login?error=google_not_configured`);
+    }
+    passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login?error=google_failed` })(req, res, next);
+  },
   (_req: Request, res: Response) => {
     res.redirect(FRONTEND_URL);
   }
 );
 
 // ── GitHub OAuth ────────────────────────────────────────────────────────────
-router.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+router.get('/auth/github', (req: Request, res: Response, next: NextFunction) => {
+  if (!passport._strategies?.github) {
+    return res.status(501).json({ error: 'GitHub login not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.' });
+  }
+  passport.authenticate('github', { scope: ['user:email'] })(req, res, next);
+});
 
 router.get(
   '/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: `${FRONTEND_URL}/login?error=github_failed` }),
+  (req: Request, res: Response, next: NextFunction) => {
+    if (!passport._strategies?.github) {
+      return res.redirect(`${FRONTEND_URL}/login?error=github_not_configured`);
+    }
+    passport.authenticate('github', { failureRedirect: `${FRONTEND_URL}/login?error=github_failed` })(req, res, next);
+  },
   (_req: Request, res: Response) => {
     res.redirect(FRONTEND_URL);
   }
